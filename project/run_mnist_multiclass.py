@@ -41,8 +41,12 @@ class Conv2d(minitorch.Module):
         self.bias = RParam(out_channels, 1, 1)
 
     def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        # Apply convolution using minitorch's conv2d
+        out = minitorch.conv2d(input, self.weights.value)
+        # Add bias to each output channel
+        # out = out + self.bias.value.view(out_channels, 1, 1)
+        out = out + self.bias.value
+        return out
 
 
 class Network(minitorch.Module):
@@ -67,12 +71,40 @@ class Network(minitorch.Module):
         self.mid = None
         self.out = None
 
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        # First conv layer: 1 input channel -> 4 output channels, 3x3 kernel
+        self.conv1 = Conv2d(1, 4, 3, 3)
+        # Second conv layer: 4 input channels -> 8 output channels, 3x3 kernel
+        self.conv2 = Conv2d(4, 8, 3, 3)
+        # Linear layers
+        # After pooling, size will be (batch, 8, 7, 7) -> flatten to (batch, 392)
+        self.linear1 = Linear(392, 64)
+        self.linear2 = Linear(64, C)
 
     def forward(self, x):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        # First conv + ReLU
+        self.mid = self.conv1.forward(x).relu()
+
+        # Second conv + ReLU
+        self.out = self.conv2.forward(self.mid).relu()
+
+        # Pooling 4x4
+        out = minitorch.maxpool2d(self.out, (4, 4))
+
+        # Flatten: combine all dimensions except batch
+        batch, channels, height, width = out.shape
+        out = out.view(batch, channels * height * width)
+
+        # First linear layer + ReLU + Dropout
+        out = self.linear1.forward(out)
+        out = out.relu()
+        out = minitorch.dropout(out, 0.25)
+
+        # Final linear layer
+        out = self.linear2.forward(out)
+
+        # Log softmax over class dimension
+        out = minitorch.logsoftmax(out, 1)
+        return out
 
 
 def make_mnist(start, stop):
@@ -88,7 +120,10 @@ def make_mnist(start, stop):
 
 
 def default_log_fn(epoch, total_loss, correct, total, losses, model):
-    print(f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}")
+    log_line = f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}"
+    print(log_line)
+    with open("mnist.txt", "a") as f:
+        f.write(log_line + "\n")
 
 
 class ImageTrain:
@@ -99,7 +134,7 @@ class ImageTrain:
         return self.model.forward(minitorch.tensor([x], backend=BACKEND))
 
     def train(
-        self, data_train, data_val, learning_rate, max_epochs=500, log_fn=default_log_fn
+        self, data_train, data_val, learning_rate, max_epochs=25, log_fn=default_log_fn
     ):
         (X_train, y_train) = data_train
         (X_val, y_val) = data_val
@@ -171,4 +206,4 @@ class ImageTrain:
 
 if __name__ == "__main__":
     data_train, data_val = (make_mnist(0, 5000), make_mnist(10000, 10500))
-    ImageTrain().train(data_train, data_val, learning_rate=0.01)
+    ImageTrain().train(data_train, data_val, learning_rate=0.005)

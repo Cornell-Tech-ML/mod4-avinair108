@@ -1,14 +1,11 @@
 from typing import Tuple, TypeVar, Any
 
-import numpy as np
 from numba import prange
 from numba import njit as _njit
 
 from .autodiff import Context
 from .tensor import Tensor
 from .tensor_data import (
-    MAX_DIMS,
-    Index,
     Shape,
     Strides,
     Storage,
@@ -21,7 +18,7 @@ from .tensor_functions import Function
 Fn = TypeVar("Fn")
 
 
-def njit(fn: Fn, **kwargs: Any) -> Fn:
+def njit(fn: Fn, **kwargs: Any) -> Fn:  # noqa: D103
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -90,8 +87,27 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    for batch_idx in prange(batch_):
+        for out_channel in prange(out_channels):
+            for out_pos in range(out_width):
+                out_position = (
+                    batch_idx * out_strides[0]
+                    + out_channel * out_strides[1]
+                    + out_pos * out_strides[2]
+                )
+                out[out_position] = 0.0
+                for in_channel in range(in_channels):
+                    for k_pos in range(kw):
+                        w_pos = k_pos if not reverse else kw - 1 - k_pos
+                        in_pos = out_pos + w_pos if not reverse else out_pos - w_pos
+                        if in_pos >= 0 and in_pos < width:
+                            in_position = (
+                                batch_idx * s1[0] + in_channel * s1[1] + in_pos * s1[2]
+                            )
+                            w_position = (
+                                out_channel * s2[0] + in_channel * s2[1] + k_pos * s2[2]
+                            )
+                            out[out_position] += input[in_position] * weight[w_position]
 
 
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
@@ -126,7 +142,7 @@ class Conv1dFun(Function):
         return output
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:  # noqa: D102
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -203,24 +219,72 @@ def _tensor_conv2d(
         reverse (bool): anchor weight at top-left or bottom-right
 
     """
-    batch_, out_channels, _, _ = out_shape
-    batch, in_channels, height, width = input_shape
-    out_channels_, in_channels_, kh, kw = weight_shape
+    batch_ = out_shape[0]
+    out_channels = out_shape[1]
+    height = out_shape[2]
+    width = out_shape[3]
+    in_channels = input_shape[1]
+    kh = weight_shape[2]
+    kw = weight_shape[3]
 
-    assert (
-        batch == batch_
-        and in_channels == in_channels_
-        and out_channels == out_channels_
-    )
+    # Get input and weight strides
+    s10, s11, s12, s13 = input_strides
+    s20, s21, s22, s23 = weight_strides
 
-    s1 = input_strides
-    s2 = weight_strides
-    # inners
-    s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
-    s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
+    # Main convolution loop
+    for batch_idx in prange(batch_):
+        for out_channel in prange(out_channels):
+            for h in range(height):
+                for w in range(width):
+                    # Calculate output position
+                    out_pos = (
+                        batch_idx * out_strides[0]
+                        + out_channel * out_strides[1]
+                        + h * out_strides[2]
+                        + w * out_strides[3]
+                    )
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+                    # Reset accumulator
+                    acc = 0.0
+
+                    # Compute convolution
+                    for in_channel in range(in_channels):
+                        for kh_pos in range(kh):
+                            for kw_pos in range(kw):
+                                if not reverse:
+                                    h_pos = h + kh_pos
+                                    w_pos = w + kw_pos
+                                    weight_h = kh_pos
+                                    weight_w = kw_pos
+                                else:
+                                    h_pos = h - (kh - 1) + kh_pos
+                                    w_pos = w - (kw - 1) + kw_pos
+                                    weight_h = kh_pos
+                                    weight_w = kw_pos
+
+                                if (
+                                    h_pos >= 0
+                                    and h_pos < input_shape[2]
+                                    and w_pos >= 0
+                                    and w_pos < input_shape[3]
+                                ):
+                                    # Calculate input and weight positions
+                                    in_pos = (
+                                        batch_idx * s10
+                                        + in_channel * s11
+                                        + h_pos * s12
+                                        + w_pos * s13
+                                    )
+                                    weight_pos = (
+                                        out_channel * s20
+                                        + in_channel * s21
+                                        + weight_h * s22
+                                        + weight_w * s23
+                                    )
+                                    acc += input[in_pos] * weight[weight_pos]
+
+                    # Store final result
+                    out[out_pos] = acc
 
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
@@ -253,7 +317,7 @@ class Conv2dFun(Function):
         return output
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:  # noqa: D102
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape
