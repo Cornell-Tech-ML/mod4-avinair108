@@ -31,7 +31,7 @@ def test_avg(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
-    # Perform the max reduction along dimension 2
+    # Test forward pass
     out = minitorch.max(t, dim=2)  # Reduce along dimension 2
     for i in range(out.shape[0]):  # Iterate over the batch
         for j in range(out.shape[1]):  # Iterate over the channels
@@ -45,6 +45,9 @@ def test_max(t: Tensor) -> None:
             assert reduced_value == max(
                 slice_
             ), f"Max mismatch: {reduced_value} != {max(slice_)}"
+    t = t + minitorch.rand(t.shape)  # Add a small constant to avoid zero values
+    # Test backward pass using grad_check
+    minitorch.grad_check(lambda t: minitorch.max(t, 2), t)
 
 
 @pytest.mark.task4_4

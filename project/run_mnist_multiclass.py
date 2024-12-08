@@ -119,8 +119,8 @@ def make_mnist(start, stop):
     return X, ys
 
 
-def default_log_fn(epoch, total_loss, correct, total, losses, model):
-    log_line = f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}"
+def default_log_fn(epoch, total_loss, valid_correct, valid_total, train_correct, train_total, losses, model):
+    log_line = f"Epoch {epoch} loss {total_loss} valid acc {valid_correct}/{valid_total} train acc {train_correct}/{train_total}"
     print(log_line)
     with open("mnist.txt", "a") as f:
         f.write(log_line + "\n")
@@ -145,6 +145,8 @@ class ImageTrain:
         losses = []
         for epoch in range(1, max_epochs + 1):
             total_loss = 0.0
+            train_correct = 0
+            train_total = 0
 
             model.train()
             for batch_num, example_num in enumerate(
@@ -171,6 +173,18 @@ class ImageTrain:
                 total_loss += loss[0]
                 losses.append(total_loss)
 
+                # Compute training accuracy
+                for i in range(BATCH):
+                    m = -1000
+                    ind = -1
+                    for j in range(C):
+                        if out[i, j] > m:
+                            ind = j
+                            m = out[i, j]
+                    if y[i, ind] == 1.0:
+                        train_correct += 1
+                train_total += BATCH
+
                 # Update
                 optim.step()
 
@@ -178,7 +192,7 @@ class ImageTrain:
                     model.eval()
                     # Evaluate on 5 held-out batches
 
-                    correct = 0
+                    valid_correct = 0
                     for val_example_num in range(0, 1 * BATCH, BATCH):
                         y = minitorch.tensor(
                             y_val[val_example_num : val_example_num + BATCH],
@@ -197,11 +211,8 @@ class ImageTrain:
                                     ind = j
                                     m = out[i, j]
                             if y[i, ind] == 1.0:
-                                correct += 1
-                    log_fn(epoch, total_loss, correct, BATCH, losses, model)
-
-                    total_loss = 0.0
-                    model.train()
+                                valid_correct += 1
+                    log_fn(epoch, total_loss, valid_correct, BATCH, train_correct, train_total, losses, model)
 
 
 if __name__ == "__main__":

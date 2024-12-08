@@ -2,7 +2,7 @@ from typing import Tuple
 
 from .autodiff import Context
 from .tensor import Tensor
-from .tensor_functions import Function, rand, tensor, zeros
+from .tensor_functions import Function, rand, tensor
 from typing import Optional
 
 
@@ -83,17 +83,22 @@ def argmax(input: Tensor, dim: int) -> Tensor:
         Tensor : 1-hot tensor with 1 in the argmax position
 
     """
-    out = zeros(input.shape)
-    # Get the maximum value using the existing max function
-    max_val = max(input, dim)
+    # out = zeros(input.shape)
+    # # Get the maximum value using the existing max function
+    # max_val = max(input, dim)
 
-    # Find positions where the input equals the max value
-    for idx in input._tensor.indices():
-        # Create index for max_val by removing the dimension we reduced over
-        max_idx = tuple(list(idx[:dim]) + list(idx[dim + 1 :]))
-        if input[idx] == max_val[max_idx]:
-            out[idx] = 1.0
-    return out
+    # # Find positions where the input equals the max value
+    # for idx in input._tensor.indices():
+    #     # Create index for max_val by removing the dimension we reduced over
+    #     max_idx = tuple(list(idx[:dim]) + list(idx[dim + 1 :]))
+    #     if input[idx] == max_val[max_idx]:
+    #         out[idx] = 1.0
+    # return out
+    if dim is None:
+        out = input.f.max_reduce(input, 0)
+    else:
+        out = input.f.max_reduce(input, int(input._ensure_tensor(dim).item()))
+    return out == input
 
 
 def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
@@ -146,16 +151,21 @@ class Max(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
         """Forward pass for max"""
-        max_tensor = a.f.max_reduce(a, int(dim.item()))
-        mask = a == max_tensor
-        ctx.save_for_backward(mask)
-        return max_tensor
+        # max_tensor = a.f.max_reduce(a, int(dim.item()))
+        # mask = a == max_tensor
+        # ctx.save_for_backward(mask)
+        # return max_tensor
+        ctx.save_for_backward(a, dim)
+        return a.f.max_reduce(a, int(dim.item()))
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """Backward pass for max."""
-        (is_max,) = ctx.saved_values
-        return grad_output * is_max, tensor([0.0])
+        a, dim = ctx.saved_values
+        arg_max = argmax(a, int(dim.item()))
+        # Otherwise, pass the full gradient
+        # Distribute gradient to max values
+        return grad_output * arg_max, tensor([0.0])
 
 
 def max(input: Tensor, dim: Optional[int] = None) -> Tensor:
