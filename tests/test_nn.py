@@ -45,7 +45,7 @@ def test_max(t: Tensor) -> None:
             assert reduced_value == max(
                 slice_
             ), f"Max mismatch: {reduced_value} != {max(slice_)}"
-    t = t + minitorch.rand(t.shape)  # Add a small constant to avoid zero values
+    t = t + minitorch.rand(t.shape)  # Add a random to avoid zero values
     # Test backward pass using grad_check
     minitorch.grad_check(lambda t: minitorch.max(t, 2), t)
 
