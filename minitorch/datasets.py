@@ -5,6 +5,17 @@ from typing import List, Tuple
 
 
 def make_pts(N: int) -> List[Tuple[float, float]]:
+    """Generates N random points.
+
+    Args:
+    ----
+        N (int): Number of points to generate.
+
+    Returns:
+    -------
+        List[Tuple[float, float]]: A list of points.
+
+    """
     X = []
     for i in range(N):
         x_1 = random.random()
@@ -21,6 +32,17 @@ class Graph:
 
 
 def simple(N: int) -> Graph:
+    """Creates a simple dataset of N points.
+
+    Args:
+    ----
+        N (int): Number of points.
+
+    Returns:
+    -------
+        Graph: A graph object representing the dataset.
+
+    """
     X = make_pts(N)
     y = []
     for x_1, x_2 in X:
@@ -30,6 +52,17 @@ def simple(N: int) -> Graph:
 
 
 def diag(N: int) -> Graph:
+    """Creates a diagonal dataset of N points.
+
+    Args:
+    ----
+        N (int): Number of points.
+
+    Returns:
+    -------
+        Graph: A graph object representing the dataset.
+
+    """
     X = make_pts(N)
     y = []
     for x_1, x_2 in X:
@@ -39,6 +72,17 @@ def diag(N: int) -> Graph:
 
 
 def split(N: int) -> Graph:
+    """Creates a split dataset of N points.
+
+    Args:
+    ----
+        N (int): Number of points.
+
+    Returns:
+    -------
+        Graph: A graph object representing the dataset.
+
+    """
     X = make_pts(N)
     y = []
     for x_1, x_2 in X:
@@ -48,6 +92,17 @@ def split(N: int) -> Graph:
 
 
 def xor(N: int) -> Graph:
+    """Creates an XOR dataset of N points.
+
+    Args:
+    ----
+        N (int): Number of points.
+
+    Returns:
+    -------
+        Graph: A graph object representing the dataset.
+
+    """
     X = make_pts(N)
     y = []
     for x_1, x_2 in X:
@@ -57,6 +112,17 @@ def xor(N: int) -> Graph:
 
 
 def circle(N: int) -> Graph:
+    """Creates a circular dataset of N points.
+
+    Args:
+    ----
+        N (int): Number of points.
+
+    Returns:
+    -------
+        Graph: A graph object representing the dataset.
+
+    """
     X = make_pts(N)
     y = []
     for x_1, x_2 in X:
@@ -67,6 +133,18 @@ def circle(N: int) -> Graph:
 
 
 def spiral(N: int) -> Graph:
+    """Creates a spiral dataset of N points.
+
+    Args:
+    ----
+        N (int): Number of points.
+
+    Returns:
+    -------
+        Graph: A graph object representing the dataset.
+
+    """
+
     def x(t: float) -> float:
         return t * math.cos(t) / 20.0
 
