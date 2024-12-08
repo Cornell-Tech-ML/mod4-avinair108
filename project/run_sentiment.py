@@ -34,8 +34,9 @@ class Conv1d(minitorch.Module):
         self.bias = RParam(1, out_channels, 1)
 
     def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        weight = self.weights.value
+        bias = self.bias.value
+        return minitorch.conv1d(input, weight) + bias
 
 
 class CNNSentimentKim(minitorch.Module):
@@ -61,15 +62,30 @@ class CNNSentimentKim(minitorch.Module):
     ):
         super().__init__()
         self.feature_map_size = feature_map_size
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.conv1 = Conv1d(embedding_size, feature_map_size, filter_sizes[0])
+        self.conv2 = Conv1d(embedding_size, feature_map_size, filter_sizes[1])
+        self.conv3 = Conv1d(embedding_size, feature_map_size, filter_sizes[2])
+        self.classifier = Linear(feature_map_size, 1)
+        self.dropout = dropout
 
     def forward(self, embeddings):
         """
         embeddings tensor: [batch x sentence length x embedding dim]
         """
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        # Adjust dimensions for convolution
+        embeddings = embeddings.permute(0, 2, 1)
+
+        x1 = self.conv1.forward(embeddings).relu()
+        x2 = self.conv2.forward(embeddings).relu()
+        x3 = self.conv3.forward(embeddings).relu()
+
+        all_maxes = minitorch.max(x1, 2) + minitorch.max(x2, 2) + minitorch.max(x3, 2)
+
+        x = self.classifier.forward(all_maxes.view(all_maxes.shape[0], all_maxes.shape[1]))
+        if self.training:
+            x = minitorch.nn.dropout(x, self.dropout)
+
+        return x.sigmoid().view(embeddings.shape[0])
 
 
 # Evaluation helper methods
@@ -109,10 +125,19 @@ def default_log_fn(
     best_val = (
         best_val if best_val > validation_accuracy[-1] else validation_accuracy[-1]
     )
-    print(f"Epoch {epoch}, loss {train_loss}, train accuracy: {train_accuracy[-1]:.2%}")
+
+    # Create log message
+    log_message = f"Epoch {epoch}, loss {train_loss}, train accuracy: {train_accuracy[-1]:.2%}\n"
     if len(validation_predictions) > 0:
-        print(f"Validation accuracy: {validation_accuracy[-1]:.2%}")
-        print(f"Best Valid accuracy: {best_val:.2%}")
+        log_message += f"Validation accuracy: {validation_accuracy[-1]:.2%}\n"
+        log_message += f"Best Valid accuracy: {best_val:.2%}\n"
+
+    # Print to console
+    print(log_message, end="")
+
+    # Save to file
+    with open("sentiment.txt", "a") as f:
+        f.write(log_message + "\n")
 
 
 class SentenceSentimentTrain:
@@ -170,12 +195,24 @@ class SentenceSentimentTrain:
             if data_val is not None:
                 (X_val, y_val) = data_val
                 model.eval()
+
+                # add padding
+                max_len = max(len(sent) for sent in X_val)
+                embedding_dim = len(X_val[0][0])
+                padded_val = []
+                for sent in X_val:
+                    if len(sent) > max_len:
+                        padded_val.append(sent[:max_len])
+                    else:
+                        padding = [[0] * embedding_dim] * (max_len - len(sent))
+                        padded_val.append(sent + padding)
+
                 y = minitorch.tensor(
                     y_val,
                     backend=BACKEND,
                 )
                 x = minitorch.tensor(
-                    X_val,
+                    padded_val,
                     backend=BACKEND,
                 )
                 out = model.forward(x)

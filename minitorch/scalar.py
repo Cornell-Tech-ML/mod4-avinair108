@@ -91,6 +91,50 @@ class Scalar:
     def __rmul__(self, b: ScalarLike) -> Scalar:
         return self * b
 
+    def __add__(self, b: ScalarLike) -> Scalar:
+        """Implements addition using the Add function."""
+        return Add.apply(self, b)
+
+    def __sub__(self, b: ScalarLike) -> Scalar:
+        """Implements subtraction."""
+        return Add.apply(self, -b)
+
+    def __rsub__(self, b: ScalarLike) -> Scalar:
+        """Implements right subtraction."""
+        return Neg.apply(self) + b
+
+    def __neg__(self) -> Scalar:
+        """Implements negation using the Neg function."""
+        return Neg.apply(self)
+
+    def __lt__(self, b: ScalarLike) -> Scalar:
+        """Implements less-than comparison using the LT function."""
+        return LT.apply(self, b)
+
+    def __gt__(self, b: ScalarLike) -> Scalar:
+        """Implements greater-than comparison by swapping LT function."""
+        return LT.apply(b, self)
+
+    def __eq__(self, b: ScalarLike) -> Scalar:  # type: ignore[override]
+        """Implements equality comparison using the Eq function."""
+        return EQ.apply(b, self)
+
+    def log(self) -> Scalar:
+        """Implements natural logarithm using the Log function."""
+        return Log.apply(self)
+
+    def exp(self) -> Scalar:
+        """Implements the exponential function using the Exp function."""
+        return Exp.apply(self)
+
+    def sigmoid(self) -> Scalar:
+        """Implements the sigmoid function using the Sigmoid function."""
+        return Sigmoid.apply(self)
+
+    def relu(self) -> Scalar:
+        """Implements the ReLU function using the ReLU function."""
+        return ReLU.apply(self)
+
     # Variable elements for backprop
 
     def accumulate_derivative(self, x: Any) -> None:
@@ -112,21 +156,34 @@ class Scalar:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """Checks if the scalar is a constant (i.e., has no gradient)."""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
-        """Get the variables used to create this one."""
+        """Returns the parent variables in the computation graph."""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Applies the chain rule to compute gradients for parent variables.
+
+        Args:
+        ----
+            d_output (Any): The derivative of the output with respect to this scalar.
+
+        Returns:
+        -------
+            Iterable[Tuple[Variable, Any]]: Gradients for each parent variable.
+
+        """
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+        local_gradients = h.last_fn._backward(h.ctx, d_output)
+        return list(zip(h.inputs, local_gradients))
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """Calls autodiff to fill in the derivatives for the history of this object.
@@ -141,17 +198,18 @@ class Scalar:
             d_output = 1.0
         backpropagate(self, d_output)
 
-    raise NotImplementedError("Need to include this file from past assignment.")
-
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
-    """Checks that autodiff works on a python function.
-    Asserts False if derivative is incorrect.
+    """Checks that autodiff works on a Python function.
 
-    Parameters
-    ----------
-        f : function from n-scalars to 1-scalar.
-        *scalars  : n input scalar values.
+    Args:
+    ----
+        f (Callable): A function that takes `n` scalar values as input and returns a single scalar.
+        *scalars (Scalar): The input scalar values on which the derivative check is performed.
+
+    Raises:
+    ------
+        AssertionError: If the computed derivative does not match the expected derivative within the tolerance.
 
     """
     out = f(*scalars)

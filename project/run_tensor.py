@@ -3,6 +3,7 @@ Be sure you have minitorch installed in you Virtual Env.
 >>> pip install -Ue .
 """
 
+from numpy import insert
 import minitorch
 
 # Use this function to make a random parameter in
@@ -10,6 +11,40 @@ import minitorch
 def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
     return minitorch.Parameter(r)
+
+class Network(minitorch.Module):
+    def __init__(self, hidden_layers):
+        super().__init__()
+        input_size = 2
+        output_size = 1
+        self.layer1 = Linear(input_size, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, output_size)
+
+    def forward(self, x):
+        middle1 = self.layer1.forward(x).relu()
+        middle2 = self.layer2.forward(middle1).relu()
+        output = self.layer3.forward(middle2).sigmoid()
+        return output
+
+
+class Linear(minitorch.Module):
+    def __init__(self, in_size, out_size):
+        super().__init__()
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.out_size = out_size
+
+
+    def forward(self, x):
+        batch, in_size = x.shape
+        xw = (
+            self.weights.value.view(1, in_size, self.out_size)
+            * x.view(batch, in_size, 1)
+        ).sum(1).view(batch, self.out_size)
+        bias = self.bias.value.view(self.out_size)
+        return (xw + bias)
+
 
 
 def default_log_fn(epoch, total_loss, correct, losses):

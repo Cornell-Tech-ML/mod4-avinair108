@@ -60,8 +60,8 @@ markers = [
     "task4_3",
     "task4_4",
 ]
-[tool.ruff]
 
+[tool.ruff]
 exclude = [
     ".git",
     "__pycache__",
@@ -74,6 +74,7 @@ exclude = [
     "**/docs/**/*",
 ]
 
+[tool.ruff.lint]
 ignore = [
     "ANN101",
     "ANN401",
