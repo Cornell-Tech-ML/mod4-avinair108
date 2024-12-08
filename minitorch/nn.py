@@ -147,7 +147,8 @@ class Max(Function):
     def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
         """Forward pass for max"""
         max_tensor = a.f.max_reduce(a, int(dim.item()))
-        ctx.save_for_backward(a == max_tensor)
+        mask = a == max_tensor
+        ctx.save_for_backward(mask)
         return max_tensor
 
     @staticmethod

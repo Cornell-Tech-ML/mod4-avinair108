@@ -79,9 +79,9 @@ class CNNSentimentKim(minitorch.Module):
         x2 = self.conv2.forward(embeddings).relu()
         x3 = self.conv3.forward(embeddings).relu()
 
-        max_overall = minitorch.max(x1, 2) + minitorch.max(x2, 2) + minitorch.max(x3, 2)
+        all_maxes = minitorch.max(x1, 2) + minitorch.max(x2, 2) + minitorch.max(x3, 2)
 
-        x = self.classifier.forward(max_overall.view(max_overall.shape[0], max_overall.shape[1]))
+        x = self.classifier.forward(all_maxes.view(all_maxes.shape[0], all_maxes.shape[1]))
         if self.training:
             x = minitorch.nn.dropout(x, self.dropout)
 
