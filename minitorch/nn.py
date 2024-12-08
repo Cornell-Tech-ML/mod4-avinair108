@@ -137,14 +137,14 @@ def softmax(input: Tensor, dim: int) -> Tensor:
 
 def logsoftmax(input: Tensor, dim: int) -> Tensor:
     """Applies the log of the softmax to the input tensor along the given dimension"""
-    maxvals = max(input, dim)
-    shift = input - maxvals
-    exp = shift.exp()
-    sumvals = exp.sum(dim)
+    max_input = max(input, dim)
+    input_minus_max = input - max_input
+    exp_input_minus_max = input_minus_max.exp()
+    sum_exp = exp_input_minus_max.sum(dim)
     out_shape = list(input.shape)
     out_shape[dim] = 1
-    sumvals = sumvals.view(*out_shape)
-    return shift - sumvals.log()
+    sum_exp = sum_exp.view(*out_shape)
+    return input_minus_max - sum_exp.log()
 
 
 class Max(Function):
